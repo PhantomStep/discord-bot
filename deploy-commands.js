@@ -1,166 +1,52 @@
-const { REST, Routes, ApplicationCommandOptionType } = require('discord.js');
+const { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 require('dotenv').config();
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
-const GUILD_ID = process.env.GUILD_ID;
-
 const commands = [
-    {
-        name: 'help',
-        description: 'Показывает список всех доступных команд.',
-    },
-    {
-        name: 'hi',
-        description: 'Отвечает "Привет!"',
-    },
-    {
-        name: 'level', // НАША НОВАЯ КОМАНДА
-        description: 'Показать мой текущий уровень и прогресс.',
-    },
-    {
-        name: 'clear',
-        description: 'Удаляет указанное количество сообщений (от 1 до 100).',
-        options: [
-            {
-                name: 'количество',
-                description: 'Число сообщений для удаления (максимум 100).',
-                type: ApplicationCommandOptionType.Integer,
-                required: true,
-            },
-        ],
-    },
-    {
-        name: 'clearall',
-        description: 'Удаляет все сообщения, которые возможно удалить (младше 14 дней).',
-    },
-    {
-        name: 'kick',
-        description: 'Исключает пользователя с сервера (кик).',
-        options: [
-            {
-                name: 'пользователь',
-                description: 'Пользователь, которого нужно исключить.',
-                type: ApplicationCommandOptionType.User,
-                required: true,
-            },
-            {
-                name: 'причина',
-                description: 'Причина исключения.',
-                type: ApplicationCommandOptionType.String,
-                required: false,
-            },
-        ],
-    },
-    {
-        name: 'ban',
-        description: 'Перманентно банит пользователя.',
-        options: [
-            {
-                name: 'пользователь',
-                description: 'Пользователь, которого нужно забанить.',
-                type: ApplicationCommandOptionType.User,
-                required: true,
-            },
-            {
-                name: 'причина',
-                description: 'Причина бана.',
-                type: ApplicationCommandOptionType.String,
-                required: false,
-            },
-        ],
-    },
-    {
-        name: 'tmute',
-        description: 'Временно ограничивает пользователя (таймаут) на заданное время (10m, 2h).',
-        options: [
-            {
-                name: 'пользователь',
-                description: 'Пользователь, которого нужно ограничить.',
-                type: ApplicationCommandOptionType.User,
-                required: true,
-            },
-            {
-                name: 'время',
-                description: 'Длительность таймаута (например, 10m, 1h, 3d). Максимум 28 дней.',
-                type: ApplicationCommandOptionType.String,
-                required: true,
-            },
-            {
-                name: 'причина',
-                description: 'Причина таймаута.',
-                type: ApplicationCommandOptionType.String,
-                required: false,
-            },
-        ],
-    },
-    {
-        name: 'mute',
-        description: 'Мутит пользователя на максимальный срок (28 дней).',
-        options: [
-            {
-                name: 'пользователь',
-                description: 'Пользователь, которого нужно ограничить.',
-                type: ApplicationCommandOptionType.User,
-                required: true,
-            },
-            {
-                name: 'причина',
-                description: 'Причина ограничения.',
-                type: ApplicationCommandOptionType.String,
-                required: false,
-            },
-        ],
-    },
-    {
-        name: 'unmute',
-        description: 'Снимает таймаут с пользователя.',
-        options: [
-            {
-                name: 'пользователь',
-                description: 'Пользователь, с которого нужно снять таймаут.',
-                type: ApplicationCommandOptionType.User,
-                required: true,
-            },
-            {
-                name: 'причина',
-                description: 'Причина снятия таймаута.',
-                type: ApplicationCommandOptionType.String,
-                required: false,
-            },
-        ],
-    },
-    {
-        name: 'unban',
-        description: 'Снимает перманентный бан с пользователя.',
-        options: [
-            {
-                name: 'id_пользователя', 
-                description: 'ID пользователя, которого нужно разбанить.',
-                type: ApplicationCommandOptionType.String,
-                required: true,
-            },
-            {
-                name: 'причина',
-                description: 'Причина снятия бана.',
-                type: ApplicationCommandOptionType.String,
-                required: false,
-            },
-        ],
-    },
-];
+    new SlashCommandBuilder().setName('hi').setDescription('Поздороваться с ботом'),
+    new SlashCommandBuilder().setName('level').setDescription('Показать ваш уровень и прогресс'),
+    
+    // Модерация
+    new SlashCommandBuilder().setName('kick').setDescription('Исключить пользователя')
+        .addUserOption(opt => opt.setName('target').setDescription('Кого исключить').setRequired(true))
+        .addStringOption(opt => opt.setName('reason').setDescription('Причина'))
+        .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
 
-const rest = new REST({ version: '10' }).setToken(BOT_TOKEN);
+    new SlashCommandBuilder().setName('ban').setDescription('Забанить пользователя')
+        .addUserOption(opt => opt.setName('target').setDescription('Кого забанить').setRequired(true))
+        .addStringOption(opt => opt.setName('reason').setDescription('Причина'))
+        .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
+
+    new SlashCommandBuilder().setName('unban').setDescription('Разбанить пользователя по ID')
+        .addStringOption(opt => opt.setName('id').setDescription('ID пользователя').setRequired(true))
+        .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
+
+    new SlashCommandBuilder().setName('mute').setDescription('Мут на 28 дней')
+        .addUserOption(opt => opt.setName('target').setDescription('Кому выдать мут').setRequired(true))
+        .addStringOption(opt => opt.setName('reason').setDescription('Причина'))
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+
+    new SlashCommandBuilder().setName('tmute').setDescription('Мут на время')
+        .addUserOption(opt => opt.setName('target').setDescription('Кому выдать мут').setRequired(true))
+        .addStringOption(opt => opt.setName('duration').setDescription('Время (10m, 1h, 1d)').setRequired(true))
+        .addStringOption(opt => opt.setName('reason').setDescription('Причина'))
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+
+    new SlashCommandBuilder().setName('unmute').setDescription('Снять мут')
+        .addUserOption(opt => opt.setName('target').setDescription('С кого снять мут').setRequired(true))
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+].map(command => command.toJSON());
+
+const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 
 (async () => {
     try {
-        console.log('Начало регистрации (/) команд на сервере.');
+        console.log('Начинаю обновление слеш-команд...');
         await rest.put(
-            Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+            Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
             { body: commands },
         );
-        console.log('Успешная регистрация (/) команд!');
+        console.log('Команды успешно зарегистрированы!');
     } catch (error) {
-        console.error('Ошибка при регистрации команд:', error);
+        console.error(error);
     }
 })();
