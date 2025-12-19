@@ -69,32 +69,37 @@ client.on('guildMemberAdd', member => {
     welcomeChannel.send({ embeds: [embed] });
 });
 
-// Система уровней
+// Система уровней (Исправленная версия)
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
 
-    let userData = await User.findOne({ userId: message.author.id, guildId: message.guild.id });
-    if (!userData) {
-        userData = new User({ userId: message.author.id, guildId: message.guild.id });
-    }
+    try {
+        // Используем findOneAndUpdate с опцией upsert, чтобы избежать конфликтов ID
+        const userData = await User.findOneAndUpdate(
+            { userId: message.author.id, guildId: message.guild.id },
+            { $inc: { xp: 1 } }, // Сразу прибавляем 1 к XP
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
 
-    userData.xp += 1;
-    const nextLevelXp = (userData.level + 1) * 10;
+        const nextLevelXp = (userData.level + 1) * 10;
 
-    if (userData.xp >= nextLevelXp) {
-        userData.level += 1;
-        userData.xp = 0;
-        
-        const levelChannel = message.guild.channels.cache.get(CHANNELS.LEVELS);
-        if (levelChannel) {
-            const lvlEmbed = new EmbedBuilder()
-                .setTitle('Повышение уровня!')
-                .setDescription(`Поздравляем, ${message.author}! Твой новый уровень: **${userData.level}**`)
-                .setColor('Gold');
-            levelChannel.send({ embeds: [lvlEmbed] });
+        if (userData.xp >= nextLevelXp) {
+            userData.level += 1;
+            userData.xp = 0;
+            await userData.save();
+            
+            const levelChannel = message.guild.channels.cache.get(CHANNELS.LEVELS);
+            if (levelChannel) {
+                const lvlEmbed = new EmbedBuilder()
+                    .setTitle('Повышение уровня!')
+                    .setDescription(`Поздравляем, ${message.author}! Твой новый уровень: **${userData.level}**`)
+                    .setColor('Gold');
+                levelChannel.send({ embeds: [lvlEmbed] });
+            }
         }
+    } catch (err) {
+        console.error("Ошибка при обновлении уровня:", err);
     }
-    await userData.save();
 });
 
 // Обработка команд
@@ -167,3 +172,4 @@ const http = require('http');
 http.createServer((req, res) => res.end('Бот активен')).listen(process.env.PORT || 3000);
 
 client.login(process.env.BOT_TOKEN);
+
