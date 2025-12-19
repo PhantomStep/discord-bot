@@ -15,7 +15,6 @@ mongoose.connect(MONGODB_URI)
     .then(() => console.log('Подключено к MongoDB!'))
     .catch(err => console.error('Ошибка подключения к MongoDB:', err));
 
-// Создаем схему данных для пользователя
 const userSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },
     messages: { type: Number, default: 0 },
@@ -45,7 +44,7 @@ client.on(Events.GuildMemberAdd, async (member) => {
     channel.send({ embeds: [welcomeEmbed] });
 });
 
-// --- СИСТЕМА УРОВНЕЙ (СООБЩЕНИЯ) ---
+// --- СИСТЕМА УРОВНЕЙ ---
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
 
@@ -73,32 +72,19 @@ client.on(Events.MessageCreate, async (message) => {
     await userData.save();
 });
 
-// --- ОБРАБОТКА СЛЭШ-КОМАНД (ТО, ЧЕГО НЕ ХВАТАЛО) ---
+// --- ОБРАБОТКА КОМАНДЫ /LEVEL (Добавлено кратко) ---
 client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
     if (interaction.commandName === 'level') {
-        // Даем боту время подумать, чтобы не было ошибки "Приложение не отвечает"
-        await interaction.deferReply();
-
         const userData = await User.findOne({ userId: interaction.user.id });
         const lvl = userData ? userData.level : 0;
         const msg = userData ? userData.messages : 0;
 
-        const levelEmbed = new EmbedBuilder()
-            .setTitle(`📊 Твой уровень`)
-            .setDescription(`${interaction.user}, твоя статистика:`)
-            .addFields(
-                { name: 'Уровень', value: `${lvl}`, inline: true },
-                { name: 'Сообщения', value: `${msg} / ${(lvl + 1) * 10}`, inline: true }
-            )
-            .setColor(0x00ffaa);
-
-        await interaction.editReply({ embeds: [levelEmbed] });
-    }
-
-    if (interaction.commandName === 'hi') {
-        await interaction.reply('Привет!');
+        await interaction.reply({
+            content: `⭐ Твой уровень: **${lvl}** | ✉️ Сообщений до следующего: **${(lvl + 1) * 10 - msg}**`,
+            ephemeral: true
+        });
     }
 });
 
