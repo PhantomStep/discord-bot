@@ -1,4 +1,4 @@
-const { Client, Events, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+const { Client, Events, GatewayIntentBits, PermissionsBitField, ChannelType, EmbedBuilder } = require('discord.js');
 const mongoose = require('mongoose');
 require('dotenv').config();
 
@@ -15,6 +15,7 @@ mongoose.connect(MONGODB_URI)
     .then(() => console.log('Подключено к MongoDB!'))
     .catch(err => console.error('Ошибка подключения к MongoDB:', err));
 
+// Создаем схему данных для пользователя
 const userSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },
     messages: { type: Number, default: 0 },
@@ -44,7 +45,7 @@ client.on(Events.GuildMemberAdd, async (member) => {
     channel.send({ embeds: [welcomeEmbed] });
 });
 
-// --- СИСТЕМА УРОВНЕЙ (Счетчик) ---
+// --- СИСТЕМА УРОВНЕЙ (СООБЩЕНИЯ) ---
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
 
@@ -54,7 +55,6 @@ client.on(Events.MessageCreate, async (message) => {
     }
 
     userData.messages += 1;
-
     const nextLevelThreshold = (userData.level + 1) * 10;
 
     if (userData.messages >= nextLevelThreshold) {
@@ -66,48 +66,40 @@ client.on(Events.MessageCreate, async (message) => {
             const levelEmbed = new EmbedBuilder()
                 .setTitle('🆙 НОВЫЙ УРОВЕНЬ!')
                 .setDescription(`Поздравляем, ${message.author}! Твой новый уровень: **${userData.level}**!`)
-                .setColor(0x00aaff)
-                .setTimestamp();
+                .setColor(0x00aaff);
             levelChannel.send({ embeds: [levelEmbed] });
         }
     }
     await userData.save();
 });
 
-// --- ОБРАБОТКА СЛЭШ-КОМАНД ---
+// --- ОБРАБОТКА СЛЭШ-КОМАНД (ТО, ЧЕГО НЕ ХВАТАЛО) ---
 client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
-    const { commandName } = interaction;
+    if (interaction.commandName === 'level') {
+        // Даем боту время подумать, чтобы не было ошибки "Приложение не отвечает"
+        await interaction.deferReply();
 
-    // Команда /level
-    if (commandName === 'level') {
         const userData = await User.findOne({ userId: interaction.user.id });
-        
-        const currentLevel = userData ? userData.level : 0;
-        const currentMessages = userData ? userData.messages : 0;
-        const nextLevelGoal = (currentLevel + 1) * 10;
+        const lvl = userData ? userData.level : 0;
+        const msg = userData ? userData.messages : 0;
 
         const levelEmbed = new EmbedBuilder()
-            .setTitle(`📊 Статистика ${interaction.user.username}`)
-            .setColor(0x00ffaa)
-            .setThumbnail(interaction.user.displayAvatarURL())
+            .setTitle(`📊 Твой уровень`)
+            .setDescription(`${interaction.user}, твоя статистика:`)
             .addFields(
-                { name: '⭐ Уровень', value: `${currentLevel}`, inline: true },
-                { name: '✉️ Сообщения', value: `${currentMessages} / ${nextLevelGoal}`, inline: true },
-                { name: '🚀 До следующего', value: `${nextLevelGoal - currentMessages} сообщ.`, inline: false }
+                { name: 'Уровень', value: `${lvl}`, inline: true },
+                { name: 'Сообщения', value: `${msg} / ${(lvl + 1) * 10}`, inline: true }
             )
-            .setFooter({ text: 'Пиши больше, чтобы поднять уровень!' });
+            .setColor(0x00ffaa);
 
-        await interaction.reply({ embeds: [levelEmbed] });
+        await interaction.editReply({ embeds: [levelEmbed] });
     }
 
-    // Команда /hi
-    if (commandName === 'hi') {
-        await interaction.reply(`Привет, ${interaction.user}! 👋`);
+    if (interaction.commandName === 'hi') {
+        await interaction.reply('Привет!');
     }
-
-    // Здесь можно добавить обработку других команд (kick, ban и т.д.)
 });
 
 // --- ГОТОВНОСТЬ И ТАЙМЕР ---
